@@ -38,3 +38,6 @@ build time and baked into the binary. Each engine is `{ name = "...", url = "htt
 - Blank/white window on NVIDIA or some Wayland setups: `WEBKIT_DISABLE_DMABUF_RENDERER=1 monivo`
 - Pages fail with a sandbox error inside containers: `WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 monivo` (last resort)
 - Site-specific video codecs (e.g. DRM content) are not supported.
+
+## Credit
+https://github.com/sakihanii/monivo-browser for making the browser in the first place
