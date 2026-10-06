@@ -12,12 +12,20 @@
 - UTC and language spoofing, Tor-style.
 
 # How it differs from traditional browsers, like Mozilla Firefox and Chromium?
-- Config is in a one **config.lua** file, where you can add search engines, remove features you don't like, etc.
+- Instead of using a settings interface like most browsers, config is in a one **config.lua** file, where you can add search engines, remove features you don't like, etc.
 - You build it from source, and it is actually fast.
 - Minimalism by design.
 - Amnesiac design. No history. And also not a fork.
 
 ## Recommended to use with a VPN/Tor/Proxies for maximum security and privacy.
+
+# Requirements:
+Lua
+GCC
+gtk3
+libsoup_3
+webkitgtk_4_1
+pkg-config
 
 A tiny privacy-first browser: GTK3 + WebKitGTK 4.1 (libsoup 3), one C file (~500 lines).
 
