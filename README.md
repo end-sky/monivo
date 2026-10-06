@@ -13,6 +13,8 @@
 
 # How it differs from traditional browsers, like Mozilla Firefox and Chromium?
 - Instead of using a settings interface like most browsers, config is in a one **config.lua** file, where you can add search engines, remove features you don't like, etc.
+- After editing **config.lua**, you must recompile the browser again to use it with the new settings.
+- Despite all of this, configurations are easy to setup and don't require any programming knowledge.
 - You build it from source, and it is actually fast.
 - Minimalism by design.
 - Amnesiac design. No history. And also not a fork.
