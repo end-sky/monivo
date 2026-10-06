@@ -2,13 +2,23 @@
 #include <gtk/gtk.h>
 #include <webkit2/webkit2.h>
 #include <string.h>
+#include <time.h>
 
 #include "config_gen.h" /* engines[], HOME_HTML, WIN_W, ... (from config.lua) */
 
 #define HOME_URI "monivo://home"
+#ifndef DATADIR
+#define DATADIR "/usr/local/share/monivo"
+#endif
 
-static GtkWidget *win, *entry, *engine_box, *status, *dark_btn;
+static GtkWidget *win, *entry, *engine_box, *status, *dark_btn, *ns_btn;
 static WebKitWebView *view;
+static WebKitUserContentManager *ucm;
+static WebKitUserContentFilterStore *store;
+static WebKitUserContentFilter *ns_filter[2], *ns_added;
+static int ns_mode = NOSCRIPT_MODE - 1; /* 0 = mode 1, 1 = mode 2 */
+static int pending;                     /* async filter jobs still running */
+static char *start_uri;
 static gboolean dark = START_DARK;
 
 /* ---------- address bar: URL or search ---------- */
@@ -137,7 +147,9 @@ static gboolean on_policy(WebKitWebView *v, WebKitPolicyDecision *d,
         /* single window: open target=_blank / window.open in the same view */
         WebKitNavigationAction *a =
             webkit_navigation_policy_decision_get_navigation_action(WEBKIT_NAVIGATION_POLICY_DECISION(d));
-        webkit_web_view_load_uri(v, webkit_uri_request_get_uri(webkit_navigation_action_get_request(a)));
+        /* NoScript: popups the page opens without a user click are dropped */
+        if (!(NOSCRIPT && !NS_SET[ns_mode].popup && !webkit_navigation_action_is_user_gesture(a)))
+            webkit_web_view_load_uri(v, webkit_uri_request_get_uri(webkit_navigation_action_get_request(a)));
         webkit_policy_decision_ignore(d);
         return TRUE;
     }
@@ -222,6 +234,129 @@ static void on_download_started(WebKitWebContext *c, WebKitDownload *dl, gpointe
     g_signal_connect(dl, "failed", G_CALLBACK(on_dl_failed), NULL);
 }
 
+/* ---------- content filtering: NoScript modes + adblock ---------- */
+
+static void report(const char *what, GError *e)
+{
+    g_printerr("monivo: %s: %s\n", what, e ? e->message : "failed");
+    gtk_label_set_text(GTK_LABEL(status), what);
+    g_clear_error(&e);
+}
+
+/* Apply the active NoScript mode: WebKit settings + its content-rule list. */
+static void ns_apply(gboolean reload)
+{
+    if (!NOSCRIPT)
+        return;
+    WebKitSettings *s = webkit_web_view_get_settings(view);
+    webkit_settings_set_enable_javascript(s, NS_SET[ns_mode].js);
+    webkit_settings_set_enable_webgl(s, NS_SET[ns_mode].webgl);
+    webkit_settings_set_enable_media(s, NS_SET[ns_mode].media);
+
+    if (ns_added) {
+        webkit_user_content_manager_remove_filter(ucm, ns_added);
+        ns_added = NULL;
+    }
+    if (ns_filter[ns_mode]) {
+        webkit_user_content_manager_add_filter(ucm, ns_filter[ns_mode]);
+        ns_added = ns_filter[ns_mode];
+    }
+    char label[8];
+    g_snprintf(label, sizeof label, "NS %d", ns_mode + 1);
+    gtk_button_set_label(GTK_BUTTON(ns_btn), label);
+    if (reload)
+        webkit_web_view_reload(view);
+}
+
+static void ns_toggle(void)
+{
+    if (NOSCRIPT) {
+        ns_mode ^= 1;
+        ns_apply(TRUE);
+    }
+}
+
+/* The first page loads only after all rule lists are installed. */
+static void filter_job_done(void)
+{
+    if (--pending > 0)
+        return;
+    ns_apply(FALSE);
+    webkit_web_view_load_uri(view, start_uri);
+    g_free(start_uri);
+    start_uri = NULL;
+}
+
+static void on_ns_saved(GObject *o, GAsyncResult *r, gpointer slot)
+{
+    GError *e = NULL;
+    WebKitUserContentFilter *f = webkit_user_content_filter_store_save_finish(store, r, &e);
+    if (f)
+        ns_filter[GPOINTER_TO_INT(slot)] = f;
+    else
+        report("noscript rules failed", e);
+    filter_job_done();
+}
+
+static void on_ab_saved(GObject *o, GAsyncResult *r, gpointer u)
+{
+    GError *e = NULL;
+    WebKitUserContentFilter *f = webkit_user_content_filter_store_save_from_file_finish(store, r, &e);
+    if (f)
+        webkit_user_content_manager_add_filter(ucm, f);
+    else
+        report("adblock rules failed", e);
+    filter_job_done();
+}
+
+static void on_ab_loaded(GObject *o, GAsyncResult *r, gpointer u)
+{
+    GError *e = NULL;
+    WebKitUserContentFilter *f = webkit_user_content_filter_store_load_finish(store, r, &e);
+    if (f) {
+        webkit_user_content_manager_add_filter(ucm, f);
+        filter_job_done();
+        return;
+    }
+    g_clear_error(&e);
+
+    /* not compiled yet (first run or lists changed): compile adblock.json */
+    const char *dir = g_getenv("MONIVO_DATA");
+    char *path = g_build_filename(dir ? dir : DATADIR, "adblock.json", NULL);
+    GFile *file = g_file_new_for_path(path);
+    webkit_user_content_filter_store_save_from_file(store, ADBLOCK_ID, file, NULL, on_ab_saved, NULL);
+    g_object_unref(file);
+    g_free(path);
+}
+
+static void setup_filters(void)
+{
+    pending = 1; /* guard so the start page waits for every job below */
+
+    /* compiled rules are cached here; it holds no browsing data */
+    char *dir = g_build_filename(g_get_user_cache_dir(), "monivo", "filters", NULL);
+    g_mkdir_with_parents(dir, 0700);
+    store = webkit_user_content_filter_store_new(dir);
+    g_free(dir);
+
+    if (NOSCRIPT) {
+        for (int i = 0; i < 2; i++) {
+            if (!NS_RULES[i])
+                continue;
+            GBytes *b = g_bytes_new_static(NS_RULES[i], strlen(NS_RULES[i]));
+            pending++;
+            webkit_user_content_filter_store_save(store, i ? "noscript-2" : "noscript-1", b, NULL,
+                                                  on_ns_saved, GINT_TO_POINTER(i));
+            g_bytes_unref(b);
+        }
+    }
+    if (ADBLOCK) {
+        pending++;
+        webkit_user_content_filter_store_load(store, ADBLOCK_ID, NULL, on_ab_loaded, NULL);
+    }
+    filter_job_done();
+}
+
 /* ---------- keyboard ---------- */
 
 static gboolean on_key(GtkWidget *w, GdkEventKey *e, gpointer u)
@@ -239,6 +374,8 @@ static gboolean on_key(GtkWidget *w, GdkEventKey *e, gpointer u)
         case GDK_KEY_minus: webkit_web_view_set_zoom_level(view, z > 0.2 ? z - 0.1 : z); return TRUE;
         case GDK_KEY_0: webkit_web_view_set_zoom_level(view, 1.0); return TRUE;
         }
+    } else if (m == (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) {
+        if (e->keyval == GDK_KEY_J || e->keyval == GDK_KEY_j) { ns_toggle(); return TRUE; }
     } else if (m == GDK_MOD1_MASK) {
         if (e->keyval == GDK_KEY_Left) { webkit_web_view_go_back(view); return TRUE; }
         if (e->keyval == GDK_KEY_Right) { webkit_web_view_go_forward(view); return TRUE; }
@@ -255,6 +392,7 @@ static void on_home(GtkButton *b, gpointer u) { webkit_web_view_load_uri(view, H
 static void on_back(GtkButton *b, gpointer u) { webkit_web_view_go_back(view); }
 static void on_fwd(GtkButton *b, gpointer u) { webkit_web_view_go_forward(view); }
 static void on_dark(GtkButton *b, gpointer u) { toggle_dark(); }
+static void on_ns(GtkButton *b, gpointer u) { ns_toggle(); }
 static void on_engine(GtkComboBox *b, gpointer u) { focus_entry(); }
 
 static GtkWidget *button(GtkWidget *bar, const char *label, GCallback cb)
@@ -280,6 +418,11 @@ static void apply_css(void)
 
 int main(int argc, char **argv)
 {
+    /* Fingerprinting: WebKit's web processes inherit TZ, so Date/Intl report this zone */
+    if (TIMEZONE) {
+        g_setenv("TZ", TIMEZONE, TRUE);
+        tzset();
+    }
     gtk_init(&argc, &argv);
 
     /* ephemeral context: no cookies, cache or history on disk */
@@ -288,8 +431,20 @@ int main(int argc, char **argv)
     webkit_cookie_manager_set_accept_policy(webkit_web_context_get_cookie_manager(ctx),
                                             WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY);
     g_signal_connect(ctx, "download-started", G_CALLBACK(on_download_started), NULL);
+    if (N_LANGS) /* Accept-Language header, navigator.language(s) and Intl default locale */
+        webkit_web_context_set_preferred_languages(ctx, LANGS);
 
-    view = WEBKIT_WEB_VIEW(webkit_web_view_new_with_context(ctx));
+    ucm = webkit_user_content_manager_new();
+    view = WEBKIT_WEB_VIEW(g_object_new(WEBKIT_TYPE_WEB_VIEW, "web-context", ctx,
+                                        "user-content-manager", ucm, NULL));
+    if (CANVAS_MODE) { /* runs in every frame before page scripts; seed is fresh each launch */
+        char *js = g_strdup_printf("%s\n(%u,%d);", CANVAS_JS, g_random_int(), CANVAS_MODE);
+        WebKitUserScript *us = webkit_user_script_new(js, WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES,
+                                                      WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, NULL, NULL);
+        webkit_user_content_manager_add_script(ucm, us);
+        webkit_user_script_unref(us);
+        g_free(js);
+    }
     WebKitSettings *s = webkit_web_view_get_settings(view);
     webkit_settings_set_enable_media(s, TRUE);
     webkit_settings_set_enable_mediasource(s, TRUE);
@@ -330,6 +485,10 @@ int main(int argc, char **argv)
     gtk_label_set_max_width_chars(GTK_LABEL(status), 28);
     gtk_box_pack_start(GTK_BOX(bar), status, FALSE, FALSE, 4);
 
+    if (NOSCRIPT) {
+        ns_btn = button(bar, "NS", G_CALLBACK(on_ns));
+        gtk_widget_set_tooltip_text(ns_btn, "NoScript mode: 1 = scripts on, 2 = static only (Ctrl+Shift+J)");
+    }
     dark_btn = button(bar, dark ? "Light" : "Dark", G_CALLBACK(on_dark));
 
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -340,9 +499,10 @@ int main(int argc, char **argv)
     apply_css();
     g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme", dark, NULL);
 
-    char *start = argc > 1 ? resolve_input(argv[1]) : NULL;
-    webkit_web_view_load_uri(view, start ? start : HOME_URI);
-    g_free(start);
+    start_uri = argc > 1 ? resolve_input(argv[1]) : NULL;
+    if (!start_uri)
+        start_uri = g_strdup(HOME_URI);
+    setup_filters(); /* loads start_uri once rules are installed */
 
     gtk_widget_show_all(win);
     gtk_main();

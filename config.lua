@@ -3,12 +3,11 @@
 -- binary, so after editing it you have to recompile:
 --     make              (plain)
 --     nix build         (flake)   /   rebuild your NixOS config
---
--- Each engine needs a `name` and a `url`. The url must contain exactly one
--- `%s`, which is replaced by the percent-encoded search query.
 
 return {
+  ---------------------------------------------------------------- search
   -- Engine selected at startup (must match one of the names below).
+  -- Each engine needs a `name` and a `url` with exactly one `%s` (the query).
   default = "DuckDuckGo",
 
   engines = {
@@ -18,10 +17,48 @@ return {
     { name = "Brave",      url = "https://search.brave.com/search?q=%s" },
     { name = "Startpage",  url = "https://www.startpage.com/do/search?q=%s" },
     { name = "SearXNG",    url = "https://searx.be/search?q=%s" },
-    -- Add your own, e.g. a self-hosted instance:
     -- { name = "My 4get", url = "https://4get.example.org/web?s=%s" },
   },
 
+  ---------------------------------------------------------------- adblock
+  -- Blocks ads/trackers and hides ad elements, using ABP/EasyList-syntax lists.
+  adblock = true,
+  adblock_lists = {
+    "filters/default.txt",        -- small built-in starter list
+    -- Run tools/update-lists.sh, then uncomment for real coverage:
+    -- "filters/easylist.txt",
+    -- "filters/easyprivacy.txt",
+    -- "filters/ublock.txt",
+  },
+
+  ---------------------------------------------------------------- noscript
+  -- Mode 1 (default): scripts, frames, wasm, media and fetch/XHR allowed;
+  --                   fonts, WebGL and popups blocked.
+  -- Mode 2 (untrusted): no scripts/wasm/frames/media/fetch/fonts/WebGL/popups;
+  --                   only static HTML, CSS and images.
+  -- Switch live with Ctrl+Shift+J or the "NS" button; this picks the start mode.
+  noscript = true,
+  noscript_mode = 1,
+
+  -- Optional per-mode overrides (true = allowed). wasm follows `script`.
+  -- noscript_modes = {
+  --   [1] = { font = true },       -- allow web fonts in mode 1
+  --   [2] = { image = false },     -- strictly HTML + CSS in mode 2
+  -- },
+
+  ---------------------------------------------------------------- fingerprinting
+  -- Time zone reported to websites (Date, Intl). false = use the system zone.
+  timezone = "UTC",
+  -- Languages sent in Accept-Language and exposed as navigator.language(s).
+  -- "en-US" is far more common than plain "en", so it blends in better; use { "en" } if you prefer.
+  languages = { "en-US", "en" },
+  -- Canvas/WebGL readback protection (what fingerprinters hash):
+  --   "block" = blank data, like Tor (default; a few canvas-based features may break)
+  --   "noise" = tiny changes, different per site and per session (better site compatibility)
+  --   false   = off
+  canvas = "block",
+
+  ---------------------------------------------------------------- window
   dark = false,            -- start in dark mode
   width = 1000,            -- initial window size
   height = 720,

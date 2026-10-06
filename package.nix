@@ -13,11 +13,15 @@
   # Point this at your own config.lua to change search engines without
   # touching the source tree:  monivo.override { configFile = ./my-config.lua; }
   configFile ? ./config.lua,
+  # Extra adblock lists (files), e.g.
+  #   filterLists = [ (pkgs.fetchurl { url = "https://easylist.to/easylist/easylist.txt"; hash = "sha256-..."; }) ];
+  # (get the hash with: nix-prefetch-url --type sha256 <url> | xargs nix hash to-sri --type sha256)
+  filterLists ? [ ],
 }:
 
 stdenv.mkDerivation {
   pname = "monivo";
-  version = "0.2.0";
+  version = "0.3.0";
 
   src = lib.cleanSource ./.;
 
@@ -42,6 +46,7 @@ stdenv.mkDerivation {
   makeFlags = [
     "PREFIX=${placeholder "out"}"
     "CONFIG=${configFile}"
+    "LISTS=${lib.concatMapStringsSep " " toString filterLists}"
   ];
 
   # wrapGAppsHook3 wraps bin/monivo with GIO_EXTRA_MODULES (TLS),
