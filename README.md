@@ -4,7 +4,7 @@
 
 # How is this different than the original?
 
-- Removed the unnneessary shortcuts.
+- Removed the unnecessary shortcuts.
 - Rewritten in C.
 - Added new features.
 - Binary file is now 20kb instead of 800kb.
