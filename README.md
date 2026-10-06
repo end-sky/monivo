@@ -1,5 +1,16 @@
 # Monivo
 
+## The browser that just gets the job done. Originally by @sakihanii, rewritten in C.
+
+# How is this different than the original?
+
+- Removed the unnneessary shortcuts.
+- Rewritten in C.
+- Added new features.
+- Binary file is now 20kb instead of 800kb.
+- Super lightweight, adblocker and NoScript-style extensions built-in.
+- UTC and language spoofing, Tor-style.
+
 A tiny privacy-first browser: GTK3 + WebKitGTK 4.1 (libsoup 3), one C file (~500 lines).
 
 - Ephemeral session: no history, cookies or cache on disk; third-party cookies blocked
