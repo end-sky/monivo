@@ -6,6 +6,7 @@
 
 - Added tabs
 - Added experimental feature spoof user agent. Disabled by default as it can backfire and track you more easily.
+- To change config you must edit **config.lua** if you want to enable experimental features.
 
 # How is this different than the original?
 
