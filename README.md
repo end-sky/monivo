@@ -8,6 +8,12 @@
 - Added experimental feature spoof user agent. Disabled by default as it can backfire and track you more easily.
 - To change config you must edit **config.lua** if you want to enable experimental features.
 
+## Screenshots
+
+![Photo 1](https://raw.githubusercontent.com/end-sky/monivo/refs/heads/main/ss/1791513943.png)
+
+![Photo 2](https://raw.githubusercontent.com/end-sky/monivo/refs/heads/main/ss/1791514132.png)
+
 # How is this different than the original?
 
 - Removed the unnecessary shortcuts.
