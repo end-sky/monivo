@@ -2,6 +2,11 @@
 
 ## The browser that just gets the job done. Originally by @sakihanii, rewritten in C.
 
+## Change logs
+
+- Added tabs
+- Added experimental feature spoof user agent. Disabled by default as it can backfire and track you more easily.
+
 # How is this different than the original?
 
 - Removed the unnecessary shortcuts.
