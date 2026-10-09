@@ -46,6 +46,15 @@ return {
   --   [2] = { image = false },     -- strictly HTML + CSS in mode 2
   -- },
 
+  ---------------------------------------------------------------- experimental user-agent override
+  -- DISABLED by default. When enabled, startup asks for confirmation because spoofing
+  -- can break sites, cause incorrect layouts, and may make fingerprinting worse.
+  -- This changes only the UA string; it does not make WebKit behave like Chromium.
+  experimental_user_agent = {
+    enabled = true,
+    value = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  },
+
   ---------------------------------------------------------------- fingerprinting
   -- Time zone reported to websites (Date, Intl). false = use the system zone.
   timezone = "UTC",

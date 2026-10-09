@@ -274,6 +274,18 @@ for _, l in ipairs(languages) do
   if type(l) ~= "string" or not l:match("^%a[%w%-]*$") then fail("bad language tag: " .. tostring(l)) end
 end
 
+local ua_cfg = cfg.experimental_user_agent
+if ua_cfg == nil then ua_cfg = {} end
+if type(ua_cfg) ~= "table" then fail("'experimental_user_agent' must be a table") end
+local ua_enabled = bool(ua_cfg.enabled, false, "experimental_user_agent.enabled")
+local ua_string = ua_cfg.value
+if ua_string == nil then
+  ua_string = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
+end
+if type(ua_string) ~= "string" or ua_string == "" or ua_string:find("[%c]") then
+  fail("'experimental_user_agent.value' must be a non-empty single-line string")
+end
+
 local canvas = cfg.canvas
 if canvas == nil then canvas = "block" end
 local CANVAS_MODES = { [false] = 0, block = 1, noise = 2 }
@@ -337,6 +349,8 @@ w("#define WIN_W %d\n", int(cfg.width, 1000, "width"))
 w("#define WIN_H %d\n", int(cfg.height, 720, "height"))
 w("#define START_DARK %d\n", bool(cfg.dark, false, "dark") and 1 or 0)
 w("#define DOWNLOAD_DIR %s\n", type(cfg.download_dir) == "string" and lit(cfg.download_dir) or "NULL")
+w("#define EXPERIMENTAL_UA_ENABLED %d\n", ua_enabled and 1 or 0)
+w("#define EXPERIMENTAL_UA %s\n", lit(ua_string))
 
 w("#define TIMEZONE %s\n", timezone and lit(timezone) or "NULL")
 w("#define N_LANGS %d\nstatic const char *const LANGS[] = {", #languages)
