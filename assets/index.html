@@ -2,20 +2,24 @@
 <html lang="en" class="@THEME@">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Monivo</title>
 <style>
 :root{--bg:#fff;--fg:#000;--dim:#999}
 html.dark{--bg:#000;--fg:#fff}
-html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--fg);font:300 16px system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center}
-h1{font-weight:300;font-size:28px;letter-spacing:2px;text-transform:uppercase;margin:0 0 16px}
-p{color:var(--dim);font-size:12px;letter-spacing:1px;margin:4px}
+html,body{width:100%;min-width:0;min-height:100%;margin:0;box-sizing:border-box}
+*,*::before,*::after{box-sizing:inherit}
+body{min-height:100vh;min-height:100dvh;padding:clamp(12px,4vw,48px);background:var(--bg);color:var(--fg);font:300 16px system-ui,sans-serif;display:grid;place-items:center;overflow-x:hidden;text-align:center;overflow-wrap:anywhere}
+main{width:min(100%,42rem);min-width:0}
+h1{font-weight:300;font-size:clamp(20px,5vw,28px);line-height:1.25;letter-spacing:clamp(1px,.25vw,2px);text-transform:uppercase;margin:0 0 16px}
+p{color:var(--dim);font-size:clamp(11px,2.5vw,12px);line-height:1.6;letter-spacing:.04em;margin:4px 0}
 </style>
 </head>
 <body>
+<main>
 <h1>Monivo</h1>
 <p>Privacy first &bull; No history &bull; No tracking</p>
 <p>Ctrl+L search &bull; Ctrl+H home</p>
+</main>
 </body>
 </html>

@@ -22,8 +22,8 @@ config_gen.h: $(CONFIG) tools/gen.lua assets/index.html assets/canvas.js $(wildc
 	$(LUA) tools/gen.lua $(CONFIG) assets/index.html assets/canvas.js build/adblock.json $(LISTS) > $@.tmp || { rm -f $@.tmp; exit 1; }
 	mv $@.tmp $@
 
-monivo: src/monivo.c config_gen.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ src/monivo.c $(LDLIBS)
+monivo: src/main.c src/tabs.c src/keybinds.c src/browser.h config_gen.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ src/main.c src/tabs.c src/keybinds.c $(LDLIBS)
 
 run: monivo
 	MONIVO_DATA=build ./monivo

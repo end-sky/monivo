@@ -21,7 +21,7 @@
 
 stdenv.mkDerivation {
   pname = "monivo";
-  version = "0.3.0";
+  version = "1.0.0";
 
   src = lib.cleanSource ./.;
 
