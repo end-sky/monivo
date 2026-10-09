@@ -31,7 +31,7 @@
 - Minimalism by design.
 - Amnesiac design. No history. And also not a fork.
 
-## Recommended to use with a VPN/Tor/Proxies for maximum security and privacy.
+Recommended to use with a VPN/Tor/Proxies for maximum security and privacy.
 
 # Requirements:
 Lua
